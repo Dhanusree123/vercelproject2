@@ -1,7 +1,6 @@
 "use client";
 import { useCartContext } from "@/context/CartContext";
 import { IProduct } from "@/types/product";
-import { getCartItems } from "@/utils/cart";
 import { getProductsFromLocal } from "@/utils/product";
 import { getUserFromLocal } from "@/utils/user";
 import { Add, Remove } from "@mui/icons-material";
@@ -14,23 +13,20 @@ import {
   Grid,
   Typography,
 } from "@mui/material";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const ProductsPage = () => {
   const [products, setProducts] = useState<IProduct[]>([]);
 
+  const router = useRouter();
+
   const {
     cartMap,
-    clearCart,
     handleCartMap,
     incrementCartQuantity,
     decrementCartQuantity,
   } = useCartContext();
-
-  const handleClick = () => {
-    const cartProducts = getCartItems();
-    console.log(cartProducts);
-  };
 
   const handleIncrease = (product: IProduct) => {
     const { id, title, price, image } = product;
@@ -63,6 +59,13 @@ const ProductsPage = () => {
 
   useEffect(() => {
     setProducts(getProductsFromLocal());
+
+    const user = getUserFromLocal();
+    console.log(user);
+    if (!user) {
+      router.push("/login");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -70,8 +73,6 @@ const ProductsPage = () => {
       <Typography variant="h4" sx={{ mb: 3, textAlign: "center" }}>
         Products
       </Typography>
-      <Button onClick={handleClick}>Cart</Button>
-      <Button onClick={clearCart}>Clear cart</Button>
 
       {products.length > 0 ? (
         <Grid container spacing={3}>

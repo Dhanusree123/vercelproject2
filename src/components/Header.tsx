@@ -8,8 +8,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const Header = () => {
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
-  const [cart, setCart] = useState(0);
+  const [loggedInUser, setLoggedInUser] = useState<string>("");
   const router = useRouter();
 
   const { cartQuantity } = useCartContext();
@@ -18,6 +17,7 @@ const Header = () => {
     const updateUser = () => {
       const user = getUserFromLocal();
       setLoggedInUser(user);
+      // handlecartCount(loggedInUser);
     };
     updateUser();
 
@@ -32,7 +32,7 @@ const Header = () => {
     localStorage.removeItem("loggedinuser");
     window.alert("Logged Out Successfully");
     router.push("/login");
-    setLoggedInUser(null);
+    setLoggedInUser("");
   };
 
   const handleClickOrders = () => {
@@ -44,9 +44,13 @@ const Header = () => {
     }
   };
 
-  useEffect(() => {
-    setCart(cartQuantity);
-  }, [cartQuantity]);
+  console.log(cartQuantity);
+  // useEffect(() => {
+  //   const email = getUserFromLocal();
+  //   if (email) {
+  //     handlecartCount(email);
+  //   }
+  // }, [getUserFromLocal]);
 
   return (
     <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -69,7 +73,7 @@ const Header = () => {
         {loggedInUser && (
           <Box>
             <IconButton href="/cart">
-              <Badge badgeContent={cart} color="error">
+              <Badge badgeContent={cartQuantity} color="error">
                 <ShoppingCart />
               </Badge>
             </IconButton>

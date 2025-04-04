@@ -51,6 +51,7 @@ const LoginPage = () => {
     setLoggedInUser(activeUser);
   }, []);
 
+  console.log(loggedInUser);
   return (
     <Box
       sx={{
