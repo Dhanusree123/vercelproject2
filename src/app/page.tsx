@@ -1,8 +1,7 @@
 "use client";
-import { useCartContext } from "@/context/CartContext";
+import { useGlobalContext } from "@/context/GlobalContext";
 import { IProduct } from "@/types/product";
 import { getProductsFromLocal } from "@/utils/product";
-import { getUserFromLocal } from "@/utils/user";
 import { Add, Remove } from "@mui/icons-material";
 import {
   Box,
@@ -13,59 +12,56 @@ import {
   Grid,
   Typography,
 } from "@mui/material";
-import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const ProductsPage = () => {
   const [products, setProducts] = useState<IProduct[]>([]);
 
-  const router = useRouter();
-
   const {
+    user,
     cartMap,
     handleCartMap,
     incrementCartQuantity,
     decrementCartQuantity,
-  } = useCartContext();
+  } = useGlobalContext();
 
   const handleIncrease = (product: IProduct) => {
-    const { id, title, price, image } = product;
-    const email = getUserFromLocal();
+    const { id, title, price, image, stock } = product;
 
-    const newCartMap = { ...cartMap };
-    if (newCartMap[product.id]) {
-      newCartMap[product.id].quantity += 1;
+    const userCartMap = cartMap[user] ?? {};
+
+    if (userCartMap[id]) {
+      userCartMap[id].quantity += 1;
     } else {
-      newCartMap[product.id] = { id, title, price, image, quantity: 1 };
+      userCartMap[id] = { id, title, price, image, quantity: 1 };
     }
-    handleCartMap(email, newCartMap);
+
+    if (userCartMap[id]?.quantity === stock) {
+      alert("Maximum limit reached");
+      console.log("warning");
+    }
+
+    handleCartMap(userCartMap);
     incrementCartQuantity();
   };
 
   const handleDecrease = (product: IProduct) => {
-    const email = getUserFromLocal();
-    console.log(email);
-    if (!email) return;
-
-    const newCartMap = { ...cartMap };
-    if (newCartMap[product.id]?.quantity > 1) {
-      newCartMap[product.id].quantity -= 1;
-    } else {
-      delete newCartMap[product.id];
+    const { id } = product;
+    const userCartMap = cartMap[user] ?? {};
+    const updatedUserCart = { ...userCartMap };
+    if (updatedUserCart[id]) {
+      if (updatedUserCart[id].quantity > 1) {
+        updatedUserCart[id].quantity -= 1;
+      } else {
+        delete updatedUserCart[id];
+      }
     }
-    handleCartMap(email, newCartMap);
+    handleCartMap(updatedUserCart);
     decrementCartQuantity();
   };
 
   useEffect(() => {
     setProducts(getProductsFromLocal());
-
-    const user = getUserFromLocal();
-    console.log(user);
-    if (!user) {
-      router.push("/login");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -127,7 +123,7 @@ const ProductsPage = () => {
                   )}
                 </CardContent>
                 <CardActions>
-                  {cartMap[product.id]?.quantity > 0 ? (
+                  {cartMap[user]?.[product.id]?.quantity > 0 ? (
                     <Box
                       sx={{
                         display: "flex",
@@ -140,12 +136,12 @@ const ProductsPage = () => {
                       </Button>
 
                       <Typography>
-                        {cartMap[product.id]?.quantity || 0}
+                        {cartMap[user]?.[product.id]?.quantity}{" "}
                       </Typography>
                       <Button
                         onClick={() => handleIncrease(product)}
                         disabled={
-                          product.stock === cartMap[product.id].quantity
+                          product.stock === cartMap[user]?.[product.id].quantity
                         }
                       >
                         <Add />

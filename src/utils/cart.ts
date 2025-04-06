@@ -1,10 +1,20 @@
-import { ICartProduct } from '@/types/product';
+import { ICartMap, IUserCartMap } from "@/types/cart";
 
-export const getCartItems = (): Record<string,ICartProduct[]> => {
+export const getCart = (): ICartMap => {
   return JSON.parse(localStorage.getItem('carts') || '{}');
 };
 
-export const setCartItems = (email:string,items: ICartProduct[]) => {
-  const carts = getCartItems();
-  carts[email] = items; 
-  localStorage.setItem("carts", JSON.stringify(carts));};
+export const setCart = (carts:ICartMap) => {
+  localStorage.setItem("carts", JSON.stringify(carts));
+};
+
+export const getUserCart = (email:string):IUserCartMap => {
+  const cart = getCart();
+  return cart[email] ?? {}
+}
+
+export const setUserCart = (email:string,userCart:IUserCartMap) => {
+  const cart = getCart();
+  cart[email] = userCart;
+  setCart(cart)
+}

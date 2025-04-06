@@ -1,6 +1,6 @@
 "use client";
+import { useGlobalContext } from "@/context/GlobalContext";
 import { ILogin, LoginSchema } from "@/types/login";
-import { getUserFromLocal, setUserToLocal } from "@/utils/user";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Box,
@@ -13,12 +13,10 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 
 const LoginPage = () => {
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
-
   const router = useRouter();
 
   const methods = useForm<ILogin>({
@@ -28,6 +26,8 @@ const LoginPage = () => {
     },
   });
 
+  const { login } = useGlobalContext();
+
   const {
     handleSubmit,
     formState: { errors },
@@ -36,22 +36,12 @@ const LoginPage = () => {
   } = methods;
 
   const onSubmit = (details: ILogin) => {
-    console.log(loggedInUser);
-    setUserToLocal(details.email);
-    setLoggedInUser(details.email);
-
-    window.dispatchEvent(new Event("userloggedin"));
-
+    login(details.email);
     reset();
+    alert("Logged in successfully");
     router.push("/");
   };
 
-  useEffect(() => {
-    const activeUser = getUserFromLocal();
-    setLoggedInUser(activeUser);
-  }, []);
-
-  console.log(loggedInUser);
   return (
     <Box
       sx={{

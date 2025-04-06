@@ -13,11 +13,3 @@ export type IProduct = z.infer<typeof ProductSchema>
 export const AddProductSchema = ProductSchema.omit({id:true})
 
 
-export type ICartProduct = {
-    id:string,
-    title:string,
-    image:string,
-    price:number,
-    quantity:number
-}
-

@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+// /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 import {
   Box,
@@ -10,84 +10,86 @@ import {
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { IProduct } from "@/types/product";
 import { Add } from "@mui/icons-material";
-// import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import { useGlobalContext } from "@/context/GlobalContext";
+import AuthGuard from "@/guards/AuthGuard";
+import { ICartProduct, IUserCartMap } from "@/types/cart";
+import { getCart, getUserCart, setCart } from "@/utils/cart";
 import {
   getProductsFromLocal,
   getUpdatedProductFromLocal,
+  setProductsToLocal,
 } from "@/utils/product";
-import { CartContext } from "@/context/CartContext";
-import { getUserFromLocal } from "@/utils/user";
+import { getUserOrders, setUserOrders } from "@/utils/order";
+import { IProduct } from "@/types/product";
 
 const CartPage = () => {
-  const useCartContext = () => useContext(CartContext);
   const {
+    user,
     cartMap,
     incrementCartQuantity,
     decrementCartQuantity,
     handleCartMap,
-  } = useCartContext();
-  const [cartProducts, setCartProducts] = useState<IProduct[]>([]);
+  } = useGlobalContext();
 
-  const [user, setUser] = useState<string | null>("");
+  const [cartProducts, setCartProducts] = useState<IUserCartMap>({});
+
   const [warning, setWarning] = useState<string>("");
 
   const router = useRouter();
 
-  const handleIncrease = (product: IProduct) => {
-    const email = getUserFromLocal();
+  const handleIncrease = (product: ICartProduct) => {
+    const { id, title, price, image } = product;
 
-    const newCartMap = { ...cartMap };
-    if (newCartMap[product.id]) {
-      newCartMap[product.id].quantity += 1;
+    const userCartMap = cartMap[user] ?? {};
+    if (userCartMap[id]) {
+      userCartMap[id].quantity += 1;
     } else {
-      newCartMap[product.id] = { ...product, quantity: 1 };
+      userCartMap[id] = { id, title, price, image, quantity: 1 };
     }
-    handleCartMap(email, newCartMap);
+    handleCartMap(userCartMap);
     incrementCartQuantity();
   };
 
-  const handleDecrease = (product: IProduct) => {
-    const email = getUserFromLocal();
-    console.log(email);
-    if (!email) return;
-
-    const newCartMap = { ...cartMap };
-    if (newCartMap[product.id]?.quantity > 1) {
-      newCartMap[product.id].quantity -= 1;
-    } else {
-      delete newCartMap[product.id];
-      window.location.reload();
+  const handleDecrease = (product: ICartProduct) => {
+    const { id } = product;
+    const userCartMap = cartMap[user] ?? {};
+    if (userCartMap[id]) {
+      if (userCartMap[id].quantity > 1) {
+        userCartMap[id].quantity -= 1;
+      } else {
+        delete userCartMap[id];
+        window.location.reload();
+      }
     }
-    handleCartMap(email, newCartMap);
+    handleCartMap(userCartMap);
     decrementCartQuantity();
   };
 
   const PlaceOrder = () => {
-    const activeUser = getUserFromLocal();
-    if (!activeUser) {
-      alert("Login to place an order");
-      return;
-    }
-
-    const carts = JSON.parse(localStorage.getItem("carts") || "{}");
-    const orders = JSON.parse(localStorage.getItem("orders") || "{}");
+    const carts = getCart();
     const products = getProductsFromLocal();
+    const userCart = getUserCart(user) ?? {};
 
-    const userCart = carts[activeUser] || [];
+    const productMap: Record<string, IProduct> = {};
+    products.forEach((p: IProduct) => {
+      productMap[p.id] = p;
+    });
 
     let orderValid = true;
     let errorMessage = "";
 
-    userCart.forEach((product: IProduct) => {
-      const requestedQuantity = cartMap[product.id]?.quantity || 0;
-      if (requestedQuantity > product.stock) {
+    Object.values(userCart).forEach((cartItem) => {
+      const product = productMap[cartItem.id];
+      if (!product) {
         orderValid = false;
-        errorMessage += `Not enough stock for ${product.title}. Available: ${product.stock}, Requested: ${requestedQuantity}}\n`;
+        errorMessage += `Product ${cartItem.title} not found.\n`;
+      } else if (cartItem.quantity > product.stock) {
+        orderValid = false;
+        errorMessage += `Not enough stock for ${cartItem.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}}\n`;
       }
     });
 
@@ -96,63 +98,42 @@ const CartPage = () => {
       return;
     }
 
-    orders[activeUser] = orders[activeUser] || [];
-
     const orderId = crypto.randomUUID();
 
     const newOrder = {
       id: orderId,
-      items: userCart.map((product: IProduct) => ({
-        ...product,
-        quantity: cartMap[product.id]?.quantity,
-      })),
+      items: Object.values(userCart),
     };
 
-    orders[activeUser].push(newOrder);
+    const userOrders = getUserOrders(user);
+    userOrders[orderId] = newOrder;
+    setUserOrders(user, userOrders);
 
-    const productHashMap: Record<string, IProduct> = {};
-    products.forEach((p) => {
-      productHashMap[p.id] = p;
-    });
-
-    userCart.forEach((product: IProduct) => {
-      if (productHashMap[product.id]) {
-        productHashMap[product.id].stock -= cartMap[product.id]?.quantity || 0;
+    Object.values(userCart).forEach((cartItem) => {
+      const product = productMap[cartItem.id];
+      if (product) {
+        product.stock -= cartItem.quantity;
       }
     });
+    setProductsToLocal(Object.values(productMap));
 
-    localStorage.setItem(
-      "products",
-      JSON.stringify(Object.values(productHashMap))
-    );
-
-    localStorage.setItem("orders", JSON.stringify(orders));
-
-    delete carts[activeUser];
-    localStorage.setItem("carts", JSON.stringify(carts));
-
+    delete carts[user];
+    setCart(carts);
     alert("Order placed successfully!");
     window.location.reload();
   };
 
   useEffect(() => {
-    const activeUser = getUserFromLocal();
-    if (!activeUser) {
-      router.push("/login");
-    } else {
-      setUser(activeUser);
-    }
-    if (activeUser) {
-      const carts = JSON.parse(localStorage.getItem("carts") || "{}");
-      const userCart = carts[activeUser] || [];
+    if (user) {
+      const userCart = getUserCart(user) ?? {};
       setCartProducts(userCart);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const updatedProduct = getUpdatedProductFromLocal();
     if (updatedProduct) {
-      const existingProduct = cartProducts.find(
+      const existingProduct = Object.values(cartProducts).find(
         (p) => p.id === updatedProduct.id
       );
       if (existingProduct && existingProduct.price !== updatedProduct.price) {
@@ -163,21 +144,29 @@ const CartPage = () => {
         setWarning(
           `Price ${status} for ${existingProduct.title} from Rs. ${updatedProduct.price} to Rs. ${existingProduct.price}`
         );
-        const updatedCart = cartProducts.map((p) =>
-          p.id === updatedProduct.id ? { ...p, updatedProduct } : p
-        );
+
+        const updatedCart: IUserCartMap = {
+          ...cartProducts,
+          [updatedProduct.id]: {
+            ...cartProducts[updatedProduct.id],
+            price: updatedProduct.price,
+          },
+        };
+
         setCartProducts(updatedCart);
         if (user) {
-          const carts = JSON.parse(localStorage.getItem("carts") || "{}");
+          const carts = getCart();
           carts[user] = updatedCart;
-          localStorage.setItem("carts", JSON.stringify(carts));
+          setCart(carts);
         }
+        const timeout = setTimeout(() => setWarning(""), 5000);
+        return () => clearTimeout(timeout);
       }
     }
-  }, [user]);
+  }, [user, cartProducts]);
 
   return (
-    <>
+    <AuthGuard>
       <Container maxWidth="lg">
         <Box>
           {warning && (
@@ -186,12 +175,12 @@ const CartPage = () => {
             </Typography>
           )}
 
-          {cartProducts.length > 0 ? (
+          {Object.values(cartProducts).length > 0 ? (
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, lg: 8 }}>
                 <Card>
                   <CardContent>
-                    {cartProducts.map((product) => (
+                    {Object.values(cartProducts).map((product) => (
                       <Box
                         key={product.id}
                         sx={{
@@ -236,9 +225,7 @@ const CartPage = () => {
                             <Button onClick={() => handleDecrease(product)}>
                               <RemoveIcon />
                             </Button>
-                            <Typography>
-                              {cartMap[product.id]?.quantity}
-                            </Typography>
+                            <Typography>{product.quantity}</Typography>
                             <Button onClick={() => handleIncrease(product)}>
                               <Add />
                             </Button>
@@ -279,7 +266,7 @@ const CartPage = () => {
                   <Typography>Total Amount:</Typography>
                   <Typography>
                     Rs.
-                    {Object.values(cartMap).reduce(
+                    {Object.values(cartProducts).reduce(
                       (acc, p) => acc + p.price * p.quantity,
                       0
                     )}
@@ -306,7 +293,7 @@ const CartPage = () => {
           )}
         </Box>
       </Container>
-    </>
+    </AuthGuard>
   );
 };
 

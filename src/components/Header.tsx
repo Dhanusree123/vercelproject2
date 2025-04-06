@@ -1,56 +1,29 @@
 "use client";
-import { useCartContext } from "@/context/CartContext";
-import { getUserFromLocal } from "@/utils/user";
+import { useGlobalContext } from "@/context/GlobalContext";
 import { Add, Home, ShoppingCart } from "@mui/icons-material";
 import { Badge, Box, Button, IconButton } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 const Header = () => {
-  const [loggedInUser, setLoggedInUser] = useState<string>("");
   const router = useRouter();
 
-  const { cartQuantity } = useCartContext();
-
-  useEffect(() => {
-    const updateUser = () => {
-      const user = getUserFromLocal();
-      setLoggedInUser(user);
-      // handlecartCount(loggedInUser);
-    };
-    updateUser();
-
-    window.addEventListener("userloggedin", updateUser);
-
-    return () => {
-      window.removeEventListener("userloggedin", updateUser);
-    };
-  });
+  const { cartQuantity, user, logout } = useGlobalContext();
 
   const handleLogout = () => {
-    localStorage.removeItem("loggedinuser");
-    window.alert("Logged Out Successfully");
+    logout();
+    alert("Logged Out Successfully");
     router.push("/login");
-    setLoggedInUser("");
   };
 
   const handleClickOrders = () => {
-    const loggedInUser = getUserFromLocal();
-    if (loggedInUser === "ganesh@microfox.co") {
+    if (user === "ganesh@microfox.co") {
       router.push("/orders");
     } else {
       router.push("/my-orders");
     }
   };
-
-  console.log(cartQuantity);
-  // useEffect(() => {
-  //   const email = getUserFromLocal();
-  //   if (email) {
-  //     handlecartCount(email);
-  //   }
-  // }, [getUserFromLocal]);
 
   return (
     <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -61,36 +34,29 @@ const Header = () => {
           </IconButton>
         </Link>
 
-        {loggedInUser === "ganesh@microfox.co" && (
+        {user === "ganesh@microfox.co" && (
           <Link href={"/product-add"}>
-            <IconButton size="small">
+            <IconButton size="medium">
               <Add />
             </IconButton>
           </Link>
         )}
       </Box>
       <Box>
-        {loggedInUser && (
+        {user && (
           <Box>
             <IconButton href="/cart">
               <Badge badgeContent={cartQuantity} color="error">
                 <ShoppingCart />
               </Badge>
             </IconButton>
-            {loggedInUser === "ganesh@microfox.co" ? (
-              <Link href={"/orders"}>
-                <Button onClick={handleClickOrders}>Orders</Button>
-              </Link>
-            ) : (
-              <Link href={"/my-orders"}>
-                <Button onClick={handleClickOrders}>Orders</Button>
-              </Link>
-            )}
+
+            <Link href={"/orders"}>
+              <Button onClick={handleClickOrders}>Orders</Button>
+            </Link>
 
             <Link href="/login">
-              <Button onClick={handleLogout} sx={{ ml: 2 }}>
-                LOGOUT
-              </Button>
+              <Button onClick={handleLogout}>LOGOUT</Button>
             </Link>
           </Box>
         )}

@@ -1,69 +1,64 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import ProductForm from "@/components/ProductForm";
+import { useGlobalContext } from "@/context/GlobalContext";
+import AuthGuard from "@/guards/AuthGuard";
 import { IProduct } from "@/types/product";
+import { getCart, setCart } from "@/utils/cart";
 import {
   getProductsFromLocal,
+  setProductsToLocal,
   setUpdatedProductToLocal,
 } from "@/utils/product";
-import { getUserFromLocal } from "@/utils/user";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
 
 const EditProductPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const router = useRouter();
-
+  const { user } = useGlobalContext();
   const [product, setProduct] = useState<IProduct | null>(null);
-  const [logged, setLogged] = useState<string | null>(null);
-
   const param = React.use(params);
 
   const handleSubmit = (updatedProduct: IProduct) => {
     const products = getProductsFromLocal();
 
-    const productHashMap: Record<string, IProduct> = {};
-    products.forEach((p) => (productHashMap[p.id] = p));
+    const productMap: Record<string, IProduct> = {};
+    products.forEach((p: IProduct) => (productMap[p.id] = p));
 
-    if (productHashMap[updatedProduct.id]) {
-      setUpdatedProductToLocal(productHashMap[updatedProduct.id]);
+    if (productMap[updatedProduct.id]) {
+      setUpdatedProductToLocal(productMap[updatedProduct.id]);
     }
 
-    productHashMap[updatedProduct.id] = updatedProduct;
+    productMap[updatedProduct.id] = updatedProduct;
 
-    localStorage.setItem(
-      "products",
-      JSON.stringify(Object.values(productHashMap))
-    );
+    setProductsToLocal(Object.values(productMap));
+    const cartMap = getCart();
 
-    const cartData = localStorage.getItem("carts");
+    Object.keys(cartMap).forEach((userEmail) => {
+      const userCartMap = cartMap[userEmail];
 
-    if (cartData) {
-      const carts = JSON.parse(cartData);
+      if (userCartMap[updatedProduct.id]) {
+        userCartMap[updatedProduct.id] = {
+          ...userCartMap[updatedProduct.id],
+          ...updatedProduct,
+        };
+      }
 
-      Object.keys(carts).forEach((user) => {
-        const cartHashMap: Record<string, IProduct> = {};
-        carts[user].forEach((p: IProduct) => (cartHashMap[p.id] = p));
+      cartMap[userEmail] = userCartMap;
+    });
 
-        if (cartHashMap[updatedProduct.id]) {
-          cartHashMap[updatedProduct.id] = {
-            ...cartHashMap[updatedProduct.id],
-            ...updatedProduct,
-          };
-        }
-
-        carts[user] = Object.values(cartHashMap);
-      });
-
-      localStorage.setItem("carts", JSON.stringify(carts));
-    }
+    setCart(cartMap);
     router.push("/");
   };
 
   useEffect(() => {
+    if (!user) return;
+    if (user !== "ganesh@microfox.co") {
+      alert("you don't have access to edit this product");
+      router.push("/");
+      return;
+    }
     const productData = localStorage.getItem("products");
     if (productData) {
       const products: IProduct[] = JSON.parse(productData);
@@ -72,25 +67,16 @@ const EditProductPage = ({ params }: { params: Promise<{ id: string }> }) => {
         setProduct(foundProduct);
       }
     }
-    const loggedUser = getUserFromLocal();
-    if (!loggedUser) {
-      router.push("/login");
-    } else {
-      setLogged(loggedUser);
-      if (loggedUser !== "ganesh@microfox.co") {
-        toast.error("you don't have access to edit this product");
-
-        router.push("/");
-      }
-    }
-  }, [param.id]);
+  }, [param.id, user, router]);
 
   if (!product) {
     return <p>Loading...</p>;
   }
 
   return (
-    <ProductForm isEdit={true} product={product} onSubmit={handleSubmit} />
+    <AuthGuard>
+      <ProductForm isEdit={true} product={product} onSubmit={handleSubmit} />
+    </AuthGuard>
   );
 };
 
