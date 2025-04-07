@@ -81,33 +81,6 @@ export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user]);
 
-  // const loadCart = useCallback(() => {
-  //   const email = getUserFromLocal();
-  //   if (!email) return;
-
-  //   const carts = getCartItems();
-  //   const userCart: ICartProduct[] = carts[email] || [];
-
-  //   const newCartMap: ICartMap = {};
-  //   userCart.forEach((item) => {
-  //     newCartMap[item.id] = item;
-  //   });
-
-  //   setCartMap(newCartMap);
-
-  //   const totalQuantity = userCart.reduce(
-  //     (acc, item) => acc + item.quantity,
-  //     0
-  //   );
-  //   setCartQuantity(totalQuantity);
-
-  //   window.addEventListener("userloggedin", loadCart);
-  // }, []);
-
-  // useEffect(() => {
-  //   loadCart();
-  // }, [loadCart]);
-
   return (
     <GlobalContext.Provider
       value={{

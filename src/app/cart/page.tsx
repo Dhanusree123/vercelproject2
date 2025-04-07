@@ -36,7 +36,7 @@ const CartPage = () => {
   } = useGlobalContext();
 
   const [cartProducts, setCartProducts] = useState<IUserCartMap>({});
-
+  const [productsInLocal, setProductsInLocal] = useState<IProduct[]>([]);
   const [warning, setWarning] = useState<string>("");
 
   const router = useRouter();
@@ -45,10 +45,15 @@ const CartPage = () => {
     const { id, title, price, image } = product;
 
     const userCartMap = cartMap[user] ?? {};
+    const foundProduct = productsInLocal.find((p: IProduct) => p.id === id);
+    const stock = foundProduct?.stock ?? 0;
     if (userCartMap[id]) {
       userCartMap[id].quantity += 1;
     } else {
       userCartMap[id] = { id, title, price, image, quantity: 1 };
+    }
+    if (userCartMap[id]?.quantity === stock) {
+      alert("Maximum limit reached");
     }
     handleCartMap(userCartMap);
     incrementCartQuantity();
@@ -62,7 +67,6 @@ const CartPage = () => {
         userCartMap[id].quantity -= 1;
       } else {
         delete userCartMap[id];
-        window.location.reload();
       }
     }
     handleCartMap(userCartMap);
@@ -124,11 +128,10 @@ const CartPage = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      const userCart = getUserCart(user) ?? {};
-      setCartProducts(userCart);
+    if (user && cartMap[user]) {
+      setCartProducts(cartMap[user]);
     }
-  }, [user]);
+  }, [cartMap, user]);
 
   useEffect(() => {
     const updatedProduct = getUpdatedProductFromLocal();
@@ -164,6 +167,10 @@ const CartPage = () => {
       }
     }
   }, [user, cartProducts]);
+
+  useEffect(() => {
+    setProductsInLocal(getProductsFromLocal());
+  }, []);
 
   return (
     <AuthGuard>
@@ -226,7 +233,15 @@ const CartPage = () => {
                               <RemoveIcon />
                             </Button>
                             <Typography>{product.quantity}</Typography>
-                            <Button onClick={() => handleIncrease(product)}>
+                            <Button
+                              onClick={() => handleIncrease(product)}
+                              disabled={
+                                (productsInLocal.find(
+                                  (p: IProduct) => p.id === product.id
+                                )?.stock ?? 0) ===
+                                cartMap[user]?.[product.id]?.quantity
+                              }
+                            >
                               <Add />
                             </Button>
                           </Box>
@@ -253,7 +268,7 @@ const CartPage = () => {
                 <Typography>PRICE DETAILS</Typography>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography>Total Items:</Typography>
-                  <Typography>{Object.values(cartMap).length}</Typography>
+                  <Typography>{Object.keys(cartProducts).length}</Typography>
                 </Box>
 
                 <Box

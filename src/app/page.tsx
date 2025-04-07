@@ -39,7 +39,6 @@ const ProductsPage = () => {
 
     if (userCartMap[id]?.quantity === stock) {
       alert("Maximum limit reached");
-      console.log("warning");
     }
 
     handleCartMap(userCartMap);
