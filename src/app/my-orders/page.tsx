@@ -8,16 +8,18 @@ import { Box, Card, CardContent, Grid, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
 const MyOrdersPage = () => {
-  const [orders, setOrders] = useState<IOrder[]>([]);
+  const [orders, setOrders] = useState<Map<string, IOrder>>(new Map());
 
   const { user } = useGlobalContext();
 
   useEffect(() => {
     const storedUserOrders = getUserOrders(user);
-    const orders = Object.values(storedUserOrders);
-    setOrders(orders);
+    // const orders = Array.from(storedUserOrders);
+    setOrders(storedUserOrders ?? new Map());
   }, [user]);
 
+  const myOrders = Array.from(orders.values());
+  console.log(myOrders);
   return (
     <AuthGuard>
       <Box>
@@ -25,21 +27,21 @@ const MyOrdersPage = () => {
           My Orders
         </Typography>
 
-        {Object.values(orders).length === 0 ? (
+        {orders.size === 0 ? (
           <Typography variant="h6" sx={{ textAlign: "center" }}>
             You have no orders yet.
           </Typography>
         ) : (
-          orders.map((order) => (
+          myOrders.map((order) => (
             <Box
-              key={order.id}
+              key={order?.id}
               sx={{ mb: 4, p: 2, border: "1px solid #ddd", borderRadius: 2 }}
             >
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Order ID: {order.id}
               </Typography>
               <Grid container spacing={3}>
-                {order.items.map((product) => (
+                {order.items?.map((product) => (
                   <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={product.id}>
                     <Card sx={{ display: "flex", width: "80vw" }}>
                       <Box

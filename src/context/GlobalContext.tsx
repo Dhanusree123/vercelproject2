@@ -1,13 +1,14 @@
 "use client";
-import { ICartMap, IUserCartMap } from "@/types/cart";
+import { ICartProduct } from "@/types/cart";
 import { getCart, getUserCart, setCart } from "@/utils/cart";
 import { getUserFromLocal } from "@/utils/user";
 import { redirect } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
+type ICartMap = Map<string, Map<string, ICartProduct>>;
 interface IGlobalContext {
   cartMap: ICartMap;
-  handleCartMap: (userCartMap: IUserCartMap) => void;
+  handleCartMap: (userCartMap: Map<string, ICartProduct>) => void;
   cartQuantity: number;
   incrementCartQuantity: () => void;
   decrementCartQuantity: () => void;
@@ -22,15 +23,13 @@ export const GlobalContext = createContext({} as IGlobalContext);
 export const useGlobalContext = () => useContext(GlobalContext);
 
 export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
-  const [cartMap, setCartMap] = useState<ICartMap>({});
-  const [cartQuantity, setCartQuantity] = useState(0);
+  const [cartMap, setCartMap] = useState<ICartMap>(new Map());
+  const [cartQuantity, setCartQuantity] = useState<number>(0);
   const [user, setUser] = useState<string>("");
 
-  const handleCartMap = (userCartMap: IUserCartMap) => {
-    const newCartMap = {
-      ...cartMap,
-      [user]: userCartMap,
-    };
+  const handleCartMap = (userCartMap: Map<string, ICartProduct>) => {
+    const newCartMap = new Map(cartMap);
+    newCartMap.set(user, userCartMap);
     setCartMap(newCartMap);
     setCart(newCartMap);
   };
@@ -44,7 +43,8 @@ export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const clearCart = () => {
-    setCartMap({});
+    const clearedMap = new Map();
+    setCartMap(clearedMap);
     setCartQuantity(0);
     localStorage.removeItem("cart");
   };
@@ -70,12 +70,10 @@ export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (user) {
       const userCart = getUserCart(user);
-      const totalQuantity: number = Object.values(userCart)?.reduce(
-        (acc, product) => {
-          return acc + product.quantity;
-        },
-        0
-      );
+      let totalQuantity = 0;
+      userCart.forEach((product) => {
+        totalQuantity += product.quantity;
+      });
       setUser(user);
       setCartQuantity(totalQuantity);
     }

@@ -46,14 +46,14 @@ const Header = () => {
         {user && (
           <Box>
             <IconButton href="/cart">
-              <Badge badgeContent={cartQuantity} color="error">
+              <Badge badgeContent={Number(cartQuantity || 0)} color="error">
                 <ShoppingCart />
               </Badge>
             </IconButton>
 
-            <Link href={"/orders"}>
-              <Button onClick={handleClickOrders}>Orders</Button>
-            </Link>
+            {/* <Link href={"/orders"}> */}
+            <Button onClick={handleClickOrders}>Orders</Button>
+            {/* </Link> */}
 
             <Link href="/login">
               <Button onClick={handleLogout}>LOGOUT</Button>

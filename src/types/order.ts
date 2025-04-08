@@ -10,5 +10,5 @@ export type IOrder = {
     id: string;
     items: IOrderProduct[];
 };
-export type IUserOrderMap = Record<string,IOrder>
-export type IOrderMap = Record<string, IUserOrderMap>;
+export type IUserOrderMap = Map<string,IOrder>
+export type IOrderMap = Map<string, IUserOrderMap>;

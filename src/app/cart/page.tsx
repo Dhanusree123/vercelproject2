@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 import {
@@ -35,7 +36,9 @@ const CartPage = () => {
     handleCartMap,
   } = useGlobalContext();
 
-  const [cartProducts, setCartProducts] = useState<IUserCartMap>({});
+  const [cartProducts, setCartProducts] = useState<Map<string, ICartProduct>>(
+    new Map()
+  );
   const [productsInLocal, setProductsInLocal] = useState<IProduct[]>([]);
   const [warning, setWarning] = useState<string>("");
 
@@ -43,59 +46,71 @@ const CartPage = () => {
 
   const handleIncrease = (product: ICartProduct) => {
     const { id, title, price, image } = product;
+    const userCartMap = new Map(cartMap.get(user));
 
-    const userCartMap = cartMap[user] ?? {};
-    const foundProduct = productsInLocal.find((p: IProduct) => p.id === id);
+    const foundProduct = productsInLocal.find((p) => p.id === id);
     const stock = foundProduct?.stock ?? 0;
-    if (userCartMap[id]) {
-      userCartMap[id].quantity += 1;
+
+    console.log(userCartMap);
+    const existing = userCartMap.get(id);
+    const currentQuantity = existing?.quantity ?? 0;
+    if (existing) {
+      if (currentQuantity >= stock) {
+        alert("Maximum limit reached");
+        return;
+      }
+      userCartMap.set(id, {
+        id,
+        title,
+        image,
+        price,
+        quantity: currentQuantity + 1,
+      });
     } else {
-      userCartMap[id] = { id, title, price, image, quantity: 1 };
+      userCartMap.set(id, { id, title, price, image, quantity: 1 });
     }
-    if (userCartMap[id]?.quantity === stock) {
-      alert("Maximum limit reached");
-    }
+
     handleCartMap(userCartMap);
     incrementCartQuantity();
   };
-
   const handleDecrease = (product: ICartProduct) => {
     const { id } = product;
-    const userCartMap = cartMap[user] ?? {};
-    if (userCartMap[id]) {
-      if (userCartMap[id].quantity > 1) {
-        userCartMap[id].quantity -= 1;
+    const userCartMap = new Map(cartMap.get(user) ?? []);
+    const existing = userCartMap.get(id);
+
+    if (existing) {
+      if (existing.quantity > 1) {
+        userCartMap.set(id, { ...existing, quantity: existing.quantity - 1 });
       } else {
-        delete userCartMap[id];
+        userCartMap.delete(id);
       }
     }
+
     handleCartMap(userCartMap);
     decrementCartQuantity();
   };
 
   const PlaceOrder = () => {
-    const carts = getCart();
+    const cartMapObj = getCart();
     const products = getProductsFromLocal();
-    const userCart = getUserCart(user) ?? {};
+    const userCart = getUserCart(user) ?? new Map();
 
-    const productMap: Record<string, IProduct> = {};
-    products.forEach((p: IProduct) => {
-      productMap[p.id] = p;
-    });
+    const productMap = new Map<string, IProduct>();
+    products.forEach((p: IProduct) => productMap.set(p.id, p));
 
     let orderValid = true;
     let errorMessage = "";
 
-    Object.values(userCart).forEach((cartItem) => {
-      const product = productMap[cartItem.id];
+    for (const [_, cartItem] of userCart.entries()) {
+      const product = productMap.get(cartItem.id);
       if (!product) {
         orderValid = false;
         errorMessage += `Product ${cartItem.title} not found.\n`;
       } else if (cartItem.quantity > product.stock) {
         orderValid = false;
-        errorMessage += `Not enough stock for ${cartItem.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}}\n`;
+        errorMessage += `Not enough stock for ${cartItem.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}\n`;
       }
-    });
+    }
 
     if (!orderValid) {
       alert(`Order cannot be placed due to stock issues:\n${errorMessage}`);
@@ -103,40 +118,39 @@ const CartPage = () => {
     }
 
     const orderId = crypto.randomUUID();
-
     const newOrder = {
       id: orderId,
-      items: Object.values(userCart),
+      items: Array.from(userCart.values()),
     };
 
     const userOrders = getUserOrders(user);
-    userOrders[orderId] = newOrder;
+    userOrders.set(orderId, newOrder);
     setUserOrders(user, userOrders);
 
-    Object.values(userCart).forEach((cartItem) => {
-      const product = productMap[cartItem.id];
+    for (const [_, cartItem] of userCart.entries()) {
+      const product = productMap.get(cartItem.id);
       if (product) {
         product.stock -= cartItem.quantity;
       }
-    });
-    setProductsToLocal(Object.values(productMap));
+    }
+    setProductsToLocal(Array.from(productMap.values()));
 
-    delete carts[user];
-    setCart(carts);
+    cartMapObj.delete(user);
+    setCart(cartMapObj);
     alert("Order placed successfully!");
     window.location.reload();
   };
 
   useEffect(() => {
-    if (user && cartMap[user]) {
-      setCartProducts(cartMap[user]);
+    if (user && cartMap.get(user)) {
+      setCartProducts(cartMap.get(user) ?? new Map());
     }
   }, [cartMap, user]);
 
   useEffect(() => {
     const updatedProduct = getUpdatedProductFromLocal();
     if (updatedProduct) {
-      const existingProduct = Object.values(cartProducts).find(
+      const existingProduct = Array.from(cartProducts.values()).find(
         (p) => p.id === updatedProduct.id
       );
       if (existingProduct && existingProduct.price !== updatedProduct.price) {
@@ -148,18 +162,16 @@ const CartPage = () => {
           `Price ${status} for ${existingProduct.title} from Rs. ${updatedProduct.price} to Rs. ${existingProduct.price}`
         );
 
-        const updatedCart: IUserCartMap = {
-          ...cartProducts,
-          [updatedProduct.id]: {
-            ...cartProducts[updatedProduct.id],
-            price: updatedProduct.price,
-          },
-        };
+        const updatedCart = new Map(cartProducts);
+        updatedCart.set(updatedProduct.id, {
+          ...cartProducts.get(updatedProduct.id)!,
+          price: updatedProduct.price,
+        });
 
         setCartProducts(updatedCart);
         if (user) {
           const carts = getCart();
-          carts[user] = updatedCart;
+          carts.set(user, updatedCart);
           setCart(carts);
         }
         const timeout = setTimeout(() => setWarning(""), 5000);
@@ -182,72 +194,74 @@ const CartPage = () => {
             </Typography>
           )}
 
-          {Object.values(cartProducts).length > 0 ? (
+          {cartProducts.size > 0 ? (
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, lg: 8 }}>
                 <Card>
                   <CardContent>
-                    {Object.values(cartProducts).map((product) => (
-                      <Box
-                        key={product.id}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                        }}
-                      >
+                    {Array.from(cartProducts.values())
+                      .filter((product) => product.id)
+                      .map((product) => (
                         <Box
+                          key={product.id}
                           sx={{
                             display: "flex",
-                            alignItems: "center",
+                            justifyContent: "space-between",
                           }}
                         >
                           <Box
-                            component="img"
-                            src={product.image}
-                            width={180}
-                            height={180}
-                            padding={2}
                             sx={{
-                              objectFit: "cover",
-                              "&:hover": {
-                                transform: "scale(1.05)",
-                              },
+                              display: "flex",
+                              alignItems: "center",
                             }}
-                            onClick={() => router.push("/")}
-                          />
-                          <Box sx={{ marginLeft: 2 }}>
-                            <Typography>{product.title}</Typography>
-                            <Typography>Rs. {product.price}</Typography>
+                          >
+                            <Box
+                              component="img"
+                              src={product.image}
+                              width={180}
+                              height={180}
+                              padding={2}
+                              sx={{
+                                objectFit: "cover",
+                                "&:hover": {
+                                  transform: "scale(1.05)",
+                                },
+                              }}
+                              onClick={() => router.push("/")}
+                            />
+                            <Box sx={{ marginLeft: 2 }}>
+                              <Typography>{product.title}</Typography>
+                              <Typography>Rs. {product.price}</Typography>
+                            </Box>
+                          </Box>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <Button onClick={() => handleDecrease(product)}>
+                                <RemoveIcon />
+                              </Button>
+                              <Typography>{product.quantity}</Typography>
+                              <Button
+                                onClick={() => handleIncrease(product)}
+                                disabled={
+                                  (productsInLocal.find(
+                                    (p: IProduct) => p.id === product.id
+                                  )?.stock ?? 0) ===
+                                  cartProducts.get(product.id)?.quantity
+                                }
+                              >
+                                <Add />
+                              </Button>
+                            </Box>
                           </Box>
                         </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
-                            <Button onClick={() => handleDecrease(product)}>
-                              <RemoveIcon />
-                            </Button>
-                            <Typography>{product.quantity}</Typography>
-                            <Button
-                              onClick={() => handleIncrease(product)}
-                              disabled={
-                                (productsInLocal.find(
-                                  (p: IProduct) => p.id === product.id
-                                )?.stock ?? 0) ===
-                                cartMap[user]?.[product.id]?.quantity
-                              }
-                            >
-                              <Add />
-                            </Button>
-                          </Box>
-                        </Box>
-                      </Box>
-                    ))}
+                      ))}
                   </CardContent>
                   {user && (
                     <CardActions
@@ -268,7 +282,9 @@ const CartPage = () => {
                 <Typography>PRICE DETAILS</Typography>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography>Total Items:</Typography>
-                  <Typography>{Object.keys(cartProducts).length}</Typography>
+                  <Typography>
+                    {Array.from(cartProducts.values()).length}
+                  </Typography>
                 </Box>
 
                 <Box
@@ -281,7 +297,7 @@ const CartPage = () => {
                   <Typography>Total Amount:</Typography>
                   <Typography>
                     Rs.
-                    {Object.values(cartProducts).reduce(
+                    {Array.from(cartProducts.values()).reduce(
                       (acc, p) => acc + p.price * p.quantity,
                       0
                     )}

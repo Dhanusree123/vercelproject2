@@ -7,12 +7,13 @@ import { Box, Card, CardContent, Grid, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
 const OrdersPage = () => {
-  const [orders, setOrders] = useState<IOrderMap>({});
+  const [orders, setOrders] = useState<IOrderMap>(new Map());
 
   useEffect(() => {
     const storedOrders = getOrders();
     setOrders(storedOrders);
   }, []);
+  // const allOrders = Array.from(orders.values())
 
   return (
     <AuthGuard>
@@ -21,18 +22,18 @@ const OrdersPage = () => {
           All Orders
         </Typography>
 
-        {Object.keys(orders).length === 0 ? (
+        {orders.size === 0 ? (
           <Typography variant="h6" sx={{ textAlign: "center" }}>
             No orders placed yet.
           </Typography>
         ) : (
-          Object.entries(orders).map(([userMail, userOrder]) => (
+          Array.from(orders)?.map(([userMail, userOrder]) => (
             <Box key={userMail} sx={{ mb: 5, p: 3, borderRadius: 2 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Orders from : {userMail}
               </Typography>
 
-              {Object.values(userOrder).map((order) => (
+              {Array.from(userOrder.values()).map((order) => (
                 <Box
                   key={order.id}
                   sx={{
@@ -47,7 +48,7 @@ const OrdersPage = () => {
                   </Typography>
 
                   <Grid container spacing={3}>
-                    {order.items.map((product: IOrderProduct) => (
+                    {order.items?.map((product: IOrderProduct) => (
                       <Grid
                         sx={{ xs: 12, sm: 6, md: 4, lg: 3 }}
                         key={product.id}

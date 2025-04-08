@@ -6,6 +6,6 @@ export type ICartProduct = {
     quantity:number
 }
 
-export type ICartMap = Record<string,Record<string, ICartProduct>>;
+export type ICartMap = Map<string,IUserCartMap>;
 
-export type IUserCartMap = Record<string,ICartProduct>
+export type IUserCartMap = Map<string,ICartProduct>

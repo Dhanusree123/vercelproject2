@@ -38,7 +38,6 @@ const LoginPage = () => {
   const onSubmit = (details: ILogin) => {
     login(details.email);
     reset();
-    alert("Logged in successfully");
     router.push("/");
   };
 

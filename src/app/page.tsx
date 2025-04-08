@@ -28,18 +28,27 @@ const ProductsPage = () => {
 
   const handleIncrease = (product: IProduct) => {
     const { id, title, price, image, stock } = product;
-
-    const userCartMap = cartMap[user] ?? {};
-
-    if (userCartMap[id]) {
-      userCartMap[id].quantity += 1;
+    // console.log(cartMap);
+    const userCartMap = new Map(cartMap.get(user));
+    const existing = userCartMap.get(id);
+    const existingQuantity = existing?.quantity ?? 0;
+    // console.log(existing?.id);
+    if (existing) {
+      if (existingQuantity >= stock) {
+        alert("Maximum limit reached");
+        return;
+      }
+      userCartMap.set(id, {
+        id,
+        title,
+        price,
+        image,
+        quantity: existingQuantity + 1,
+      });
     } else {
-      userCartMap[id] = { id, title, price, image, quantity: 1 };
+      userCartMap.set(id, { id, title, price, image, quantity: 1 });
     }
-
-    if (userCartMap[id]?.quantity === stock) {
-      alert("Maximum limit reached");
-    }
+    console.log(userCartMap);
 
     handleCartMap(userCartMap);
     incrementCartQuantity();
@@ -47,19 +56,20 @@ const ProductsPage = () => {
 
   const handleDecrease = (product: IProduct) => {
     const { id } = product;
-    const userCartMap = cartMap[user] ?? {};
-    const updatedUserCart = { ...userCartMap };
-    if (updatedUserCart[id]) {
-      if (updatedUserCart[id].quantity > 1) {
-        updatedUserCart[id].quantity -= 1;
+    const userCartMap = new Map(cartMap.get(user) ?? []);
+    const existing = userCartMap.get(id);
+
+    if (existing) {
+      if (existing.quantity > 1) {
+        userCartMap.set(id, { ...existing, quantity: existing.quantity - 1 });
       } else {
-        delete updatedUserCart[id];
+        userCartMap.delete(id);
       }
     }
-    handleCartMap(updatedUserCart);
+
+    handleCartMap(userCartMap);
     decrementCartQuantity();
   };
-
   useEffect(() => {
     setProducts(getProductsFromLocal());
   }, []);
@@ -73,96 +83,95 @@ const ProductsPage = () => {
 
         {products.length > 0 ? (
           <Grid container spacing={3}>
-            {products.map((product) => (
-              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={product.id}>
-                <Card
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    transition: "transform 0.3s ease-in-out",
-                    "&:hover": {
-                      transform: "scaleY(1.02)",
-                      boxShadow: 3,
-                    },
-                  }}
-                >
-                  <Button href={`/products/${product.id}/edit`} disableRipple>
-                    <Box
-                      component="img"
-                      src={product.image}
-                      alt={product.title}
-                      sx={{
-                        objectFit: "cover",
-                        width: 180,
-                        height: 200,
-                        "&:hover": {
-                          transform: "scale(1.05)",
-                        },
-                      }}
-                    />
-                  </Button>
+            {products.map((product) => {
+              const userCart = cartMap.get(user);
+              const cartItem = userCart?.get(product.id);
+              return (
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={product.id}>
+                  <Card
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      transition: "transform 0.3s ease-in-out",
+                      "&:hover": {
+                        transform: "scaleY(1.02)",
+                        boxShadow: 3,
+                      },
+                    }}
+                  >
+                    <Button href={`/products/${product.id}/edit`} disableRipple>
+                      <Box
+                        component="img"
+                        src={product.image}
+                        alt={product.title}
+                        sx={{
+                          objectFit: "cover",
+                          width: 180,
+                          height: 200,
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                          },
+                        }}
+                      />
+                    </Button>
 
-                  <CardContent>
-                    <Box
-                      sx={{
-                        width: 200,
-                        height: 100,
-                        display: "flex",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <Typography variant="body1">{product.title}</Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Rs. {product.price}
-                    </Typography>
-                    {product.stock === 0 && (
-                      <Typography color="error" fontWeight="bold">
-                        Out of Stock
-                      </Typography>
-                    )}
-                  </CardContent>
-                  <CardActions>
-                    {cartMap[user]?.[product.id]?.quantity > 0 ? (
+                    <CardContent>
                       <Box
                         sx={{
+                          width: 200,
+                          height: 100,
                           display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
+                          overflow: "hidden",
                         }}
                       >
-                        <Button onClick={() => handleDecrease(product)}>
-                          <Remove />
-                        </Button>
-
-                        <Typography>
-                          {cartMap[user]?.[product.id]?.quantity}{" "}
+                        <Typography variant="body1">{product.title}</Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Rs. {product.price}
+                      </Typography>
+                      {product.stock === 0 && (
+                        <Typography color="error" fontWeight="bold">
+                          Out of Stock
                         </Typography>
-                        <Button
-                          onClick={() => handleIncrease(product)}
-                          disabled={
-                            product.stock ===
-                            cartMap[user]?.[product.id].quantity
-                          }
+                      )}
+                    </CardContent>
+                    <CardActions>
+                      {cartItem?.quantity ? (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
                         >
-                          <Add />
-                        </Button>
-                      </Box>
-                    ) : (
-                      <Box>
-                        <Button
-                          onClick={() => handleIncrease(product)}
-                          disabled={product.stock === 0}
-                        >
-                          Add to Cart
-                        </Button>
-                      </Box>
-                    )}
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
+                          <Button onClick={() => handleDecrease(product)}>
+                            <Remove />
+                          </Button>
+
+                          <Typography>{cartItem?.quantity}</Typography>
+                          <Button
+                            onClick={() => handleIncrease(product)}
+                            disabled={product.stock === cartItem.quantity}
+                          >
+                            <Add />
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Box>
+                          <Button
+                            onClick={() => handleIncrease(product)}
+                            disabled={product.stock === 0}
+                          >
+                            Add to Cart
+                          </Button>
+                        </Box>
+                      )}
+                    </CardActions>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         ) : (
           <Box

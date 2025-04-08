@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import ProductForm from "@/components/ProductForm";
@@ -23,30 +24,28 @@ const EditProductPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const handleSubmit = (updatedProduct: IProduct) => {
     const products = getProductsFromLocal();
 
-    const productMap: Record<string, IProduct> = {};
-    products.forEach((p: IProduct) => (productMap[p.id] = p));
+    const productMap = new Map<string, IProduct>();
+    products.forEach((p: IProduct) => productMap.set(p.id, p));
 
-    if (productMap[updatedProduct.id]) {
-      setUpdatedProductToLocal(productMap[updatedProduct.id]);
+    if (productMap.has(updatedProduct.id)) {
+      setUpdatedProductToLocal(productMap.get(updatedProduct.id)!);
     }
 
-    productMap[updatedProduct.id] = updatedProduct;
+    productMap.set(updatedProduct.id, updatedProduct);
 
-    setProductsToLocal(Object.values(productMap));
+    setProductsToLocal(Array.from(productMap.values()));
+
     const cartMap = getCart();
 
-    Object.keys(cartMap).forEach((userEmail) => {
-      const userCartMap = cartMap[userEmail];
-
-      if (userCartMap[updatedProduct.id]) {
-        userCartMap[updatedProduct.id] = {
-          ...userCartMap[updatedProduct.id],
+    for (const [userEmail, userCartMap] of cartMap.entries()) {
+      if (userCartMap.has(updatedProduct.id)) {
+        const existingProduct = userCartMap.get(updatedProduct.id)!;
+        userCartMap.set(updatedProduct.id, {
+          ...existingProduct,
           ...updatedProduct,
-        };
+        });
       }
-
-      cartMap[userEmail] = userCartMap;
-    });
+    }
 
     setCart(cartMap);
     router.push("/");
